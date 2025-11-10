@@ -1,9 +1,9 @@
-// ABOUTME: Search input component for entering vector embeddings to query.
-// ABOUTME: Accepts JSON array input and triggers search callback on submission.
+// ABOUTME: Search input component for entering text queries.
+// ABOUTME: Accepts natural language text and triggers semantic search via embeddings.
 import { useState, FormEvent } from 'react';
 
 interface SearchBoxProps {
-  onSearch: (query: number[]) => void;
+  onSearch: (text: string) => void;
   isLoading: boolean;
 }
 
@@ -15,55 +15,46 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
     e.preventDefault();
     setError(null);
 
-    try {
-      const parsed = JSON.parse(input);
-
-      if (!Array.isArray(parsed)) {
-        setError('Input must be a JSON array');
-        return;
-      }
-
-      if (parsed.length !== 1536) {
-        setError('Array must contain exactly 1536 numbers');
-        return;
-      }
-
-      if (!parsed.every((n) => typeof n === 'number')) {
-        setError('All elements must be numbers');
-        return;
-      }
-
-      onSearch(parsed);
-    } catch (err) {
-      setError('Invalid JSON format');
+    if (!input.trim()) {
+      setError('Please enter a search query');
+      return;
     }
+
+    onSearch(input.trim());
   };
 
-  const loadRandomVector = () => {
-    const randomVector = Array.from({ length: 1536 }, () => Math.random());
-    setInput(JSON.stringify(randomVector));
+  const sampleQueries = [
+    'distributed database systems',
+    'vector similarity search',
+    'machine learning embeddings',
+    'PostgreSQL performance',
+  ];
+
+  const loadSampleQuery = (query: string) => {
+    setInput(query);
     setError(null);
   };
 
   return (
     <div style={{ marginBottom: '2rem' }}>
-      <h2>Vector Search</h2>
+      <h2>Semantic Vector Search</h2>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="vector-input" style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Enter embedding vector (JSON array of 1536 numbers):
+          <label htmlFor="search-input" style={{ display: 'block', marginBottom: '0.5rem' }}>
+            Enter your search query:
           </label>
-          <textarea
-            id="vector-input"
+          <input
+            id="search-input"
+            type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder='[0.1, 0.2, 0.3, ...]'
-            rows={6}
+            placeholder='e.g., "distributed database systems"'
             style={{
               width: '100%',
-              fontFamily: 'monospace',
-              fontSize: '0.9rem',
-              padding: '0.5rem',
+              fontSize: '1rem',
+              padding: '0.75rem',
+              borderRadius: '4px',
+              border: '1px solid #ddd',
             }}
           />
         </div>
@@ -74,36 +65,46 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ marginBottom: '1rem' }}>
           <button
             type="submit"
             disabled={isLoading}
             style={{
-              padding: '0.5rem 1rem',
+              padding: '0.75rem 1.5rem',
               background: isLoading ? '#ccc' : '#007bff',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
               cursor: isLoading ? 'not-allowed' : 'pointer',
+              fontSize: '1rem',
+              fontWeight: '500',
             }}
           >
             {isLoading ? 'Searching...' : 'Search'}
           </button>
+        </div>
 
-          <button
-            type="button"
-            onClick={loadRandomVector}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            Generate Random Vector
-          </button>
+        <div style={{ fontSize: '0.9rem', color: '#666' }}>
+          <span style={{ marginRight: '0.5rem' }}>Sample queries:</span>
+          {sampleQueries.map((query, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => loadSampleQuery(query)}
+              style={{
+                marginRight: '0.5rem',
+                marginBottom: '0.5rem',
+                padding: '0.25rem 0.5rem',
+                background: '#f0f0f0',
+                border: '1px solid #ddd',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+              }}
+            >
+              {query}
+            </button>
+          ))}
         </div>
       </form>
     </div>

@@ -15,20 +15,23 @@ const app = new Hono();
 app.post('/search', async (c) => {
   try {
     const body = await c.req.json();
-    const { query, limit = 5 } = body;
+    const { text, limit = 5 } = body;
 
-    if (!Array.isArray(query) || query.length !== 1536) {
-      return c.json({ error: 'Query must be an array of 1536 numbers' }, 400);
+    if (!text || typeof text !== 'string') {
+      return c.json({ error: 'text is required and must be a string' }, 400);
     }
 
-    if (!query.every((n) => typeof n === 'number')) {
-      return c.json({ error: 'All query values must be numbers' }, 400);
-    }
+    const embeddingResponse = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: text,
+    });
+
+    const queryEmbedding = embeddingResponse.data[0].embedding;
 
     const results = await db
       .select()
       .from(chunks)
-      .orderBy(cosineDistance(chunks.embedding, query))
+      .orderBy(cosineDistance(chunks.embedding, queryEmbedding))
       .limit(Number(limit));
 
     return c.json({ results });

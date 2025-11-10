@@ -17,17 +17,17 @@ export interface SearchResponse {
 }
 
 export interface SearchRequest {
-  query: number[];
+  text: string;
   limit?: number;
 }
 
-export async function searchVectors(query: number[], limit: number = 5): Promise<Chunk[]> {
+export async function searchVectors(text: string, limit: number = 5): Promise<Chunk[]> {
   const response = await fetch('/api/search', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ query, limit }),
+    body: JSON.stringify({ text, limit }),
   });
 
   if (!response.ok) {

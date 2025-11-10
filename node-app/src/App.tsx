@@ -10,12 +10,12 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSearch = async (query: number[]) => {
+  const handleSearch = async (text: string) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const searchResults = await searchVectors(query, 5);
+      const searchResults = await searchVectors(text, 5);
       setResults(searchResults);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed');
