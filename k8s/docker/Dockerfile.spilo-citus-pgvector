@@ -1,0 +1,29 @@
+# ABOUTME: Custom Spilo Docker image with Citus and pgvector extensions for distributed vector search on Kubernetes.
+# ABOUTME: Extends zalando/spilo-17 with Citus 13.2 and pgvector support from PostgreSQL APT repository.
+
+ARG SPILO_VERSION=4.0-p3
+FROM ghcr.io/zalando/spilo-17:${SPILO_VERSION}
+
+# Switch to root to install packages
+USER root
+
+# Add Citus repository for Citus 13.2
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates gnupg lsb-release \
+    && curl https://install.citusdata.com/community/deb.sh | bash \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+       postgresql-17-citus-13.2 \
+       postgresql-17-pgvector \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add Citus and pgvector to shared_preload_libraries
+# This is configured via environment variable that Spilo uses
+ENV CITUS_ENABLED=true
+
+# Copy initialization scripts
+COPY 001-create-citus-extension.sql /docker-entrypoint-initdb.d/
+COPY 002-create-pgvector-extension.sql /docker-entrypoint-initdb.d/
+
+# Switch back to postgres user
+USER postgres

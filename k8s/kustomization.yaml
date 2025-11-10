@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+resources:
+  # Postgres Operator
+  - operator/namespace.yaml
+  - operator/configmap.yaml
+
+  # Citus Coordinator
+  - coordinator/citus-coordinator.yaml
+
+  # Citus Workers
+  - workers/citus-worker-1.yaml
+  - workers/citus-worker-2.yaml
+
+# Configuration patches
+patches:
+  # Update the docker image reference for all PostgreSQL clusters
+  - target:
+      kind: postgresql
+      group: acid.zalan.do
+      version: v1
+    patch: |-
+      - op: replace
+        path: /spec/dockerImage
+        value: <your-registry>/spilo-citus-pgvector:17-4.0-p3
+
+# Labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: citus-vector
+  app.kubernetes.io/component: database
+  app.kubernetes.io/managed-by: postgres-operator
