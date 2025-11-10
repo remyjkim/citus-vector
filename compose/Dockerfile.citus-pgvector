@@ -1,0 +1,18 @@
+# ABOUTME: Custom Citus Docker image with pgvector extension for distributed vector search.
+# ABOUTME: Extends citusdata/citus:13.2 with pgvector support from PostgreSQL APT repository.
+
+FROM citusdata/citus:13.2
+
+# Install pgvector extension
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       postgresql-17-pgvector \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add pgvector to shared_preload_libraries alongside citus
+# Note: pgvector doesn't require preloading, but it's a best practice
+RUN sed -i "s/shared_preload_libraries='citus'/shared_preload_libraries='citus,vector'/" \
+    /usr/share/postgresql/postgresql.conf.sample
+
+# Copy pgvector extension initialization script
+COPY 002-create-pgvector-extension.sql /docker-entrypoint-initdb.d/
