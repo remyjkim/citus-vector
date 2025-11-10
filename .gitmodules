@@ -1,0 +1,6 @@
+[submodule "submodules/docker"]
+	path = submodules/docker
+	url = https://github.com/citusdata/docker.git
+[submodule "submodules/pgvector-node"]
+	path = submodules/pgvector-node
+	url = https://github.com/pgvector/pgvector-node.git
