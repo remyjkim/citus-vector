@@ -1,5 +1,7 @@
 // ABOUTME: Frontend API client for making requests to the Hono backend.
-// ABOUTME: Provides type-safe functions for vector search and chunk operations.
+// ABOUTME: Supports dual embedding providers - OpenAI (server-side) and local (client-side).
+
+export type EmbeddingProvider = 'openai' | 'local';
 
 export interface Chunk {
   id: number;
@@ -7,27 +9,60 @@ export interface Chunk {
   userId: number;
   writerChannelId: number | null;
   content: string;
-  embedding: number[];
+  embeddingOpenai?: number[];
+  embeddingLocal?: number[];
+  embeddingProvider?: string;
   metadata: Record<string, unknown> | null;
   createdAt: Date;
 }
 
 export interface SearchResponse {
   results: Chunk[];
+  provider: EmbeddingProvider;
 }
 
 export interface SearchRequest {
-  text: string;
+  text?: string;
+  embedding?: number[];
+  provider: EmbeddingProvider;
   limit?: number;
 }
 
-export async function searchVectors(text: string, limit: number = 5): Promise<Chunk[]> {
+/**
+ * Search for chunks using vector similarity
+ * @param text Query text (required for OpenAI, ignored for local)
+ * @param provider Embedding provider: 'openai' (server-side) or 'local' (client-side)
+ * @param embedding Pre-computed embedding vector (required for local provider)
+ * @param limit Number of results to return
+ * @returns Promise resolving to array of matching chunks
+ */
+export async function searchVectors(
+  text: string,
+  provider: EmbeddingProvider,
+  embedding?: number[],
+  limit: number = 5
+): Promise<Chunk[]> {
+  const body: SearchRequest = {
+    provider,
+    limit
+  };
+
+  if (provider === 'openai') {
+    body.text = text;
+  } else {
+    // Local provider: client sends pre-computed embedding
+    if (!embedding || embedding.length !== 384) {
+      throw new Error('Valid 384-dim embedding required for local provider');
+    }
+    body.embedding = embedding;
+  }
+
   const response = await fetch('/api/search', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ text, limit }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
