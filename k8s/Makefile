@@ -22,6 +22,11 @@ check-env: ## Check if environment is configured
 	@echo "  Registry: $(DOCKER_REGISTRY)"
 	@echo "  Image: $(IMAGE_NAME):$(IMAGE_TAG)"
 
+.PHONY: validate
+validate: ## Validate deployment configuration
+	@echo "Running validation checks..."
+	@./validate.sh
+
 .PHONY: install-operator
 install-operator: ## Install Zalando Postgres Operator
 	@echo "Installing Postgres Operator..."
@@ -172,7 +177,7 @@ uninstall-operator: ## Uninstall Postgres Operator
 	@echo "✓ Operator uninstalled"
 
 .PHONY: full-install
-full-install: check-env install-operator build-push update-manifests deploy ## Complete installation from scratch
+full-install: check-env validate install-operator build-push update-manifests deploy ## Complete installation from scratch
 
 .PHONY: monitoring
 monitoring: ## Port-forward to Patroni API for monitoring
