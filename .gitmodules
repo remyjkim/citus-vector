@@ -4,3 +4,6 @@
 [submodule "submodules/pgvector-node"]
 	path = submodules/pgvector-node
 	url = https://github.com/pgvector/pgvector-node.git
+[submodule "submodules/postgres-operator"]
+	path = submodules/postgres-operator
+	url = https://github.com/zalando/postgres-operator.git
