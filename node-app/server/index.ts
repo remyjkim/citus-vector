@@ -1,11 +1,12 @@
 // ABOUTME: Main Hono server entry point with CORS middleware and API routes.
-// ABOUTME: Serves API endpoints on port 3000 for vector search and chunk management.
+// ABOUTME: Initializes embedding services and serves API endpoints on port 3000.
 import 'dotenv/config';
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import routes from './routes.js';
+import { initEmbeddingServices } from './embeddings/index.js';
 
 const app = new Hono();
 
@@ -20,9 +21,22 @@ app.route('/api', routes);
 
 const port = 3000;
 
-serve({
-  fetch: app.fetch,
-  port,
-});
-
-console.log(`Server running on http://localhost:${port}`);
+// Initialize embedding services before starting server
+console.log('Starting server...');
+initEmbeddingServices()
+  .then(() => {
+    serve({
+      fetch: app.fetch,
+      port,
+    });
+    console.log(`Server running on http://localhost:${port}`);
+  })
+  .catch(error => {
+    console.error('Failed to initialize embedding services:', error);
+    console.log('Server starting anyway (some features may be unavailable)');
+    serve({
+      fetch: app.fetch,
+      port,
+    });
+    console.log(`Server running on http://localhost:${port}`);
+  });
