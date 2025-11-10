@@ -1,0 +1,39 @@
+{
+  "name": "citus-vector-search",
+  "version": "1.0.0",
+  "description": "Vector search app with Drizzle ORM, Hono, and React",
+  "type": "module",
+  "packageManager": "pnpm@10.16.0",
+  "scripts": {
+    "dev:api": "tsx watch server/index.ts",
+    "dev:ui": "vite",
+    "dev": "concurrently \"pnpm dev:api\" \"pnpm dev:ui\"",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx db/migrate.ts",
+    "db:setup-citus": "tsx db/setup-citus.ts",
+    "db:seed": "tsx db/seed.ts",
+    "build": "tsc && vite build",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.6",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.43.1",
+    "hono": "^4.6.14",
+    "openai": "^6.8.1",
+    "postgres": "^3.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "drizzle-kit": "^0.30.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  }
+}
