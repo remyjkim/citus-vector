@@ -1,0 +1,150 @@
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: citus-worker-2
+  namespace: default
+  labels:
+    app: citus
+    role: worker
+    worker-id: "2"
+spec:
+  teamId: "citus"
+  numberOfInstances: 2  # HA worker with 1 replica
+
+  # Use custom Spilo image with Citus and pgvector
+  dockerImage: <your-registry>/spilo-citus-pgvector:17-4.0-p3
+
+  postgresql:
+    version: "17"
+    parameters:
+      # Citus configuration
+      shared_preload_libraries: "citus,pg_stat_statements"
+      citus.node_conninfo: "sslmode=prefer"
+
+      # pgvector configuration
+      hnsw.ef_search: "200"
+
+      # Performance tuning
+      max_connections: "200"
+      shared_buffers: "4GB"
+      effective_cache_size: "12GB"
+      maintenance_work_mem: "1GB"
+      checkpoint_completion_target: "0.9"
+      wal_buffers: "16MB"
+      default_statistics_target: "100"
+      random_page_cost: "1.1"
+      effective_io_concurrency: "200"
+      work_mem: "10485kB"
+      min_wal_size: "2GB"
+      max_wal_size: "8GB"
+      max_worker_processes: "16"
+      max_parallel_workers_per_gather: "4"
+      max_parallel_workers: "16"
+      max_parallel_maintenance_workers: "4"
+
+  volume:
+    size: 50Gi  # Workers typically need more storage
+    storageClass: standard  # Change to your storage class
+
+  resources:
+    requests:
+      cpu: "2000m"
+      memory: "8Gi"
+    limits:
+      cpu: "4000m"
+      memory: "16Gi"
+
+  # Database and users
+  databases:
+    postgres: postgres
+
+  users:
+    postgres:
+      - superuser
+      - createdb
+
+  preparedDatabases:
+    postgres:
+      extensions:
+        citus: public
+        vector: public
+        pg_stat_statements: public
+
+  # Sidecar container to register worker with coordinator
+  sidecars:
+    - name: citus-worker-registrar
+      image: postgres:16-alpine
+      env:
+        - name: COORDINATOR_HOST
+          value: "citus-coordinator"
+        - name: COORDINATOR_PORT
+          value: "5432"
+        - name: COORDINATOR_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres.citus-coordinator.credentials.postgresql.acid.zalan.do
+              key: password
+        - name: WORKER_HOST
+          value: "citus-worker-2"
+        - name: WORKER_PORT
+          value: "5432"
+        - name: WORKER_ID
+          value: "2"
+      command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for worker PostgreSQL to be ready..."
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for worker database..."
+            sleep 2
+          done
+
+          echo "Waiting for coordinator to be ready..."
+          until pg_isready -h $COORDINATOR_HOST -p $COORDINATOR_PORT -U postgres; do
+            echo "Waiting for coordinator..."
+            sleep 5
+          done
+
+          echo "Registering worker $WORKER_ID with coordinator..."
+          PGPASSWORD=$COORDINATOR_PASSWORD psql -h $COORDINATOR_HOST -p $COORDINATOR_PORT -U postgres -c \
+            "SELECT * FROM citus_add_node('$WORKER_HOST', $WORKER_PORT);" || \
+            echo "Worker may already be registered or error occurred"
+
+          echo "Worker registration complete. Keeping sidecar alive..."
+          # Keep the sidecar running to maintain the registration
+          while true; do
+            sleep 3600
+          done
+      resources:
+        requests:
+          cpu: "50m"
+          memory: "50Mi"
+        limits:
+          cpu: "100m"
+          memory: "100Mi"
+
+  # Patroni configuration for HA
+  patroni:
+    initdb:
+      encoding: "UTF8"
+      locale: "en_US.UTF-8"
+      data-checksums: "true"
+    pg_hba:
+      - local   all             all                                   trust
+      - hostssl all             +zalandos    127.0.0.1/32       pam
+      - host    all             all          127.0.0.1/32       md5
+      - hostssl all             +zalandos    ::1/128            pam
+      - host    all             all          ::1/128            md5
+      - hostssl replication     standby all                md5
+      - hostnossl all           all          all                md5
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 33554432
+    synchronous_mode: false
+    synchronous_mode_strict: false
+
+  # Allow connections from within the cluster
+  allowedSourceRanges:
+    - 0.0.0.0/0  # Change to restrict access

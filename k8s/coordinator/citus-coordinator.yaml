@@ -1,0 +1,123 @@
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: citus-coordinator
+  namespace: default
+  labels:
+    app: citus
+    role: coordinator
+spec:
+  teamId: "citus"
+  numberOfInstances: 2  # HA coordinator with 1 replica
+
+  # Use custom Spilo image with Citus and pgvector
+  dockerImage: <your-registry>/spilo-citus-pgvector:17-4.0-p3
+
+  postgresql:
+    version: "17"
+    parameters:
+      # Citus configuration
+      shared_preload_libraries: "citus,pg_stat_statements"
+      citus.node_conninfo: "sslmode=prefer"
+
+      # pgvector configuration
+      hnsw.ef_search: "200"
+
+      # Performance tuning
+      max_connections: "200"
+      shared_buffers: "2GB"
+      effective_cache_size: "6GB"
+      maintenance_work_mem: "512MB"
+      checkpoint_completion_target: "0.9"
+      wal_buffers: "16MB"
+      default_statistics_target: "100"
+      random_page_cost: "1.1"
+      effective_io_concurrency: "200"
+      work_mem: "10485kB"
+      min_wal_size: "1GB"
+      max_wal_size: "4GB"
+      max_worker_processes: "8"
+      max_parallel_workers_per_gather: "4"
+      max_parallel_workers: "8"
+      max_parallel_maintenance_workers: "4"
+
+  volume:
+    size: 10Gi
+    storageClass: standard  # Change to your storage class
+
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "4Gi"
+    limits:
+      cpu: "2000m"
+      memory: "8Gi"
+
+  # Database and users
+  databases:
+    postgres: postgres
+
+  users:
+    postgres:
+      - superuser
+      - createdb
+
+  preparedDatabases:
+    postgres:
+      extensions:
+        citus: public
+        vector: public
+        pg_stat_statements: public
+
+  # Init container to configure Citus coordinator
+  initContainers:
+    - name: citus-init
+      image: postgres:16-alpine
+      env:
+        - name: PGHOST
+          value: "localhost"
+        - name: PGPORT
+          value: "5432"
+        - name: PGUSER
+          value: "postgres"
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres.citus-coordinator.credentials.postgresql.acid.zalan.do
+              key: password
+      command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for PostgreSQL to be ready..."
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for database..."
+            sleep 2
+          done
+
+          echo "Citus coordinator initialized successfully"
+
+  # Patroni configuration for HA
+  patroni:
+    initdb:
+      encoding: "UTF8"
+      locale: "en_US.UTF-8"
+      data-checksums: "true"
+    pg_hba:
+      - local   all             all                                   trust
+      - hostssl all             +zalandos    127.0.0.1/32       pam
+      - host    all             all          127.0.0.1/32       md5
+      - hostssl all             +zalandos    ::1/128            pam
+      - host    all             all          ::1/128            md5
+      - hostssl replication     standby all                md5
+      - hostnossl all           all          all                md5
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 33554432
+    synchronous_mode: false
+    synchronous_mode_strict: false
+
+  # Allow connections from within the cluster
+  allowedSourceRanges:
+    - 0.0.0.0/0  # Change to restrict access
