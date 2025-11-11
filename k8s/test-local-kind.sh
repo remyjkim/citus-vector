@@ -49,7 +49,21 @@ if kind get clusters | grep -q "^${CLUSTER_NAME}$"; then
 fi
 
 if ! kind get clusters | grep -q "^${CLUSTER_NAME}$"; then
-    kind create cluster --name $CLUSTER_NAME
+    # Create kind config with more resources
+    cat > /tmp/kind-config.yaml << EOF
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  # Resource configuration for local testing
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        system-reserved: memory=1Gi,cpu=500m
+EOF
+    kind create cluster --name $CLUSTER_NAME --config /tmp/kind-config.yaml
 fi
 
 echo "✓ Cluster created"
@@ -75,7 +89,7 @@ echo ""
 # Build custom image
 echo "3. Building custom Spilo image..."
 cd docker
-docker build -f Dockerfile.spilo-citus-pgvector -t $IMAGE_NAME . || exit 1
+docker buildx build --platform linux/amd64 -f Dockerfile.spilo-citus-pgvector -t $IMAGE_NAME --load . || exit 1
 cd ..
 
 echo "✓ Image built"
@@ -99,7 +113,7 @@ namespace: default
 resources:
   - operator/configmap.yaml
   - coordinator/citus-coordinator.yaml
-  - workers/citus-worker.yaml
+  - workers/citus-worker-1.yaml
   - workers/citus-worker-2.yaml
 
 patches:

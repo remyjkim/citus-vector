@@ -508,6 +508,35 @@ kubectl delete pvc -l app=citus
 5. **Configure HNSW properly**: Set `hnsw.ef_search` based on recall needs
 6. **Monitor shard distribution**: Ensure even distribution across workers
 
+## Known Limitations
+
+### Apple Silicon / ARM64 Compatibility
+
+**Issue**: Citus does not provide official ARM64 (Apple Silicon) packages in their APT repository.
+
+**Impact**:
+- Local testing with kind on Apple Silicon Macs requires Docker buildx with `--platform linux/amd64`
+- The custom Spilo image must be built for amd64 architecture even on arm64 hosts
+- kind clusters on Apple Silicon have limited resources due to emulation overhead
+
+**Solution for Production**:
+- Deploy to amd64/x86_64 Kubernetes clusters (AWS EKS, GKE, AKS, etc.) where Citus runs natively
+- The provided manifests are production-ready for amd64 architectures
+
+**Solution for Local Testing**:
+1. Use Docker buildx to build amd64 images (already configured in `test-local-kind.sh`)
+2. Accept emulation performance overhead on Apple Silicon
+3. Alternatively, test using docker-compose setup which works reliably on all architectures
+
+### Resource Requirements
+
+Minimum resources for local kind testing:
+- Coordinator: 256Mi memory, 100m CPU
+- Each Worker: 200Mi memory + 50Mi sidecar, 100m CPU each
+- Total: ~1GB memory, 500m CPU for 1 coordinator + 2 workers
+
+For production, use the default resource specifications in the manifests (much higher).
+
 ## Files
 
 - `docker/Dockerfile.spilo-citus-pgvector`: Custom Spilo image with Citus + pgvector
@@ -518,6 +547,8 @@ kubectl delete pvc -l app=citus
 - `workers/citus-worker-*.yaml`: Worker cluster manifests
 - `kustomization.yaml`: Kustomize configuration for easy deployment
 - `.env.example`: Environment configuration template
+- `test-local-kind.sh`: Automated local testing script with kind
+- `validate.sh`: Pre-deployment validation script
 
 ## References
 

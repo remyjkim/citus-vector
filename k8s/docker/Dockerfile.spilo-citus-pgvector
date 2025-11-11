@@ -2,7 +2,7 @@
 # ABOUTME: Extends zalando/spilo-17 with Citus 13.2 and pgvector support from PostgreSQL APT repository.
 
 ARG SPILO_VERSION=4.0-p3
-FROM ghcr.io/zalando/spilo-17:${SPILO_VERSION}
+FROM --platform=linux/amd64 ghcr.io/zalando/spilo-17:${SPILO_VERSION}
 
 # Switch to root to install packages
 USER root
