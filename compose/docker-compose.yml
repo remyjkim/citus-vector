@@ -12,6 +12,8 @@ services:
       PGUSER: "${POSTGRES_USER:-postgres}"
       PGPASSWORD: "${POSTGRES_PASSWORD}"
       POSTGRES_HOST_AUTH_METHOD: "${POSTGRES_HOST_AUTH_METHOD:-trust}"
+    volumes:
+      - postgres_master_data:/var/lib/postgresql/data
   worker:
     build:
       context: .
@@ -22,6 +24,7 @@ services:
     command: "/wait-for-manager.sh"
     volumes:
       - healthcheck-volume:/healthcheck
+      - postgres_worker_data:/var/lib/postgresql/data
   manager:
     container_name: "${COMPOSE_PROJECT_NAME:-citus}_manager"
     image: "citusdata/membership-manager:0.3.0"
@@ -32,3 +35,5 @@ services:
     environment: *AUTH
 volumes:
   healthcheck-volume:
+  postgres_master_data:
+  postgres_worker_data:
