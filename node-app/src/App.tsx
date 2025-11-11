@@ -3,10 +3,14 @@
 import { useState } from 'react';
 import SearchBox from './components/SearchBox';
 import ResultsList from './components/ResultsList';
+import UpsertTab from './components/UpsertTab';
 import { searchVectors, Chunk, type EmbeddingProvider } from './api';
 import { generateClientEmbedding } from './embeddings/client-embeddings';
 
+type TabType = 'search' | 'upsert';
+
 export default function App() {
+  const [activeTab, setActiveTab] = useState<TabType>('search');
   const [results, setResults] = useState<Chunk[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,15 +61,60 @@ export default function App() {
         <strong> Local:</strong> Browser-based all-MiniLM-L6-v2 (384-dim, cached in IndexedDB)
       </p>
 
-      <SearchBox onSearch={handleSearch} isLoading={isLoading} />
-
-      {results.length > 0 && (
-        <div style={{ marginBottom: '1rem', padding: '0.5rem', background: '#e7f3ff', borderRadius: '4px', fontSize: '0.9rem' }}>
-          <strong>Active Provider:</strong> {activeProvider === 'openai' ? 'OpenAI (1536-dim)' : 'Local Browser (384-dim)'}
+      {/* Tab Navigation */}
+      <div style={{ marginBottom: '2rem', borderBottom: '2px solid #ddd' }}>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={() => setActiveTab('search')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: activeTab === 'search' ? '#007bff' : 'transparent',
+              color: activeTab === 'search' ? 'white' : '#007bff',
+              border: 'none',
+              borderBottom: activeTab === 'search' ? '2px solid #007bff' : 'none',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '500',
+              transition: 'all 0.2s',
+            }}
+          >
+            Search
+          </button>
+          <button
+            onClick={() => setActiveTab('upsert')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: activeTab === 'upsert' ? '#28a745' : 'transparent',
+              color: activeTab === 'upsert' ? 'white' : '#28a745',
+              border: 'none',
+              borderBottom: activeTab === 'upsert' ? '2px solid #28a745' : 'none',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '500',
+              transition: 'all 0.2s',
+            }}
+          >
+            Upsert Chunk
+          </button>
         </div>
-      )}
+      </div>
 
-      <ResultsList results={results} isLoading={isLoading} error={error} />
+      {/* Tab Content */}
+      {activeTab === 'search' ? (
+        <>
+          <SearchBox onSearch={handleSearch} isLoading={isLoading} />
+
+          {results.length > 0 && (
+            <div style={{ marginBottom: '1rem', padding: '0.5rem', background: '#e7f3ff', borderRadius: '4px', fontSize: '0.9rem' }}>
+              <strong>Active Provider:</strong> {activeProvider === 'openai' ? 'OpenAI (1536-dim)' : 'Local Browser (384-dim)'}
+            </div>
+          )}
+
+          <ResultsList results={results} isLoading={isLoading} error={error} />
+        </>
+      ) : (
+        <UpsertTab defaultUserId={1} />
+      )}
     </div>
   );
 }

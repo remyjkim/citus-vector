@@ -205,4 +205,125 @@ app.post('/chunks/upsert', async (c) => {
   }
 });
 
+app.post('/chunks/bulk-upsert', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { provider = 'openai', chunks: chunkInputs } = body;
+
+    if (provider !== 'openai' && provider !== 'local' && provider !== 'both') {
+      return c.json({ error: 'provider must be "openai", "local", or "both"' }, 400);
+    }
+
+    if (!Array.isArray(chunkInputs) || chunkInputs.length === 0) {
+      return c.json({ error: 'chunks array is required and must not be empty' }, 400);
+    }
+
+    const results: Array<{
+      success: boolean;
+      chunk?: any;
+      error?: string;
+      action?: 'created' | 'upserted';
+    }> = [];
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const input of chunkInputs) {
+      try {
+        const { text, channelId, userId, writerChannelId, metadata, id, embeddingLocal: clientEmbeddingLocal } = input;
+
+        // Validate required fields
+        if (!text || !channelId || !userId) {
+          throw new Error('text, channelId, and userId are required');
+        }
+
+        if (typeof text !== 'string') {
+          throw new Error('text must be a string');
+        }
+
+        // Generate/collect embeddings based on provider
+        let embeddingOpenai: number[] | undefined;
+        let embeddingLocal: number[] | undefined;
+
+        if (provider === 'openai' || provider === 'both') {
+          const result = await generateEmbedding(text);
+          embeddingOpenai = result.embedding;
+        }
+
+        if (provider === 'local' || provider === 'both') {
+          // Client must provide local embedding
+          if (!clientEmbeddingLocal || !Array.isArray(clientEmbeddingLocal) || clientEmbeddingLocal.length !== 384) {
+            throw new Error('Valid 384-dim embeddingLocal required for local/both provider');
+          }
+          embeddingLocal = clientEmbeddingLocal;
+        }
+
+        const chunkData = {
+          channelId,
+          userId,
+          writerChannelId,
+          content: text,
+          embeddingOpenai,
+          embeddingLocal,
+          embeddingProvider: provider,
+          metadata,
+        };
+
+        if (id) {
+          // Upsert with existing ID
+          const result = await db
+            .insert(chunks)
+            .values({
+              id,
+              ...chunkData,
+            })
+            .onConflictDoUpdate({
+              target: [chunks.id, chunks.channelId],
+              set: chunkData,
+            })
+            .returning();
+
+          results.push({
+            success: true,
+            chunk: result[0],
+            action: 'upserted',
+          });
+        } else {
+          // Insert new chunk
+          const result = await db
+            .insert(chunks)
+            .values(chunkData)
+            .returning();
+
+          results.push({
+            success: true,
+            chunk: result[0],
+            action: 'created',
+          });
+        }
+
+        successCount++;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to process chunk';
+        results.push({
+          success: false,
+          error: message,
+        });
+        errorCount++;
+      }
+    }
+
+    return c.json({
+      results,
+      successCount,
+      errorCount,
+      total: chunkInputs.length,
+    });
+  } catch (error) {
+    console.error('Bulk upsert error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to process bulk upsert';
+    return c.json({ error: message }, 500);
+  }
+});
+
 export default app;
