@@ -97,8 +97,39 @@ docker-compose stop
 # Stop and remove containers (preserves data volumes)
 docker-compose down
 
-# Stop and remove everything including data
+# Stop and remove everything including data (WARNING: deletes all data!)
 docker-compose down -v
+```
+
+## Data Persistence
+
+Database data is **automatically persisted** using Docker named volumes:
+
+- `postgres_master_data`: Coordinator node data
+- `postgres_worker_data`: Worker node data
+
+This means:
+- ✅ Data survives `docker-compose down` and `docker-compose restart`
+- ✅ No need to re-run migrations or seed data after restarts
+- ✅ Fast container restarts (no initialization needed)
+
+### Volume Management
+
+```bash
+# List volumes
+docker volume ls | grep citus
+
+# Inspect a volume
+docker volume inspect citus_postgres_master_data
+
+# Backup database before removing volumes
+pg_dump -h localhost -U postgres postgres > backup.sql
+
+# Remove volumes (WARNING: deletes all data!)
+docker-compose down -v
+
+# Restore from backup
+psql -h localhost -U postgres postgres < backup.sql
 ```
 
 ## Files
