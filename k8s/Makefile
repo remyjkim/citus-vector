@@ -179,6 +179,11 @@ uninstall-operator: ## Uninstall Postgres Operator
 .PHONY: full-install
 full-install: check-env validate install-operator build-push update-manifests deploy ## Complete installation from scratch
 
+.PHONY: deploy-gcp
+deploy-gcp: ## Deploy to Google Cloud Platform (automated)
+	@echo "Starting GCP deployment..."
+	@./deploy-gcp.sh
+
 .PHONY: monitoring
 monitoring: ## Port-forward to Patroni API for monitoring
 	@echo "Port-forwarding Patroni API to localhost:8008..."
